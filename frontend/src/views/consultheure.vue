@@ -68,10 +68,23 @@ onMounted(async () => {
 /* Export PDF */
 const exportPDF = () => {
   const doc = new jsPDF();
-  doc.text("Mon récapitulatif des heures", 14, 15);
+  const pageWidth = doc.internal.pageSize.width;
+
+  // En-tête
+  doc.setFontSize(20);
+  doc.setTextColor(40);
+  doc.text("RÉCAPITULATIF DES HEURES", pageWidth / 2, 20, { align: "center" });
+  
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Généré le : ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 14, 30, { align: "right" });
+  
+  // Ligne de séparation
+  doc.setDrawColor(220);
+  doc.line(14, 35, pageWidth - 14, 35);
 
   autoTable(doc, {
-    startY: 20,
+    startY: 40,
     head: [["Date", "Type", "Durée", "Salle", "Statut"]],
     body: heures.value.map(h => [
       h.datecours,
@@ -79,10 +92,29 @@ const exportPDF = () => {
       h.nbheure + " h",
       h.salle,
       h.statut
-    ])
+    ]),
+    theme: 'striped',
+    headStyles: { 
+      fillColor: [41, 128, 185], 
+      textColor: 255,
+      fontSize: 11,
+      halign: 'center'
+    },
+    columnStyles: {
+      2: { halign: 'center' },
+      4: { halign: 'center' }
+    },
+    didDrawPage: (data) => {
+      // Pied de page
+      const str = "Page " + doc.internal.getNumberOfPages();
+      doc.setFontSize(10);
+      const pageSize = doc.internal.pageSize;
+      const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+      doc.text(str, data.settings.margin.left, pageHeight - 10);
+    }
   });
 
-  doc.save("mon_recapitulatif.pdf");
+  doc.save("mon_recapitulatif_heures.pdf");
 };
 
 /* Export Excel */

@@ -170,10 +170,25 @@ const exportExcel = () => {
 /* Export PDF */
 const exportPDF = () => {
   const doc = new jsPDF();
-  doc.text("État de paiement mensuel", 14, 15);
+  const pageWidth = doc.internal.pageSize.width;
+  const selectedMonthLabel = months.find(m => m.value === month.value)?.label;
+  const selectedYearLabel = annees.value.find(a => a.idanne === idanne.value)?.libeanne;
+
+  // En-tête
+  doc.setFontSize(18);
+  doc.setTextColor(25, 135, 84); // Success color
+  doc.text("ÉTAT DE PAIEMENT MENSUEL", pageWidth / 2, 20, { align: "center" });
+  
+  doc.setFontSize(12);
+  doc.setTextColor(40);
+  doc.text(`Période : ${selectedMonthLabel} ${selectedYearLabel}`, 14, 30);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Généré le : ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 14, 30, { align: "right" });
 
   autoTable(doc, {
-    startY: 20,
+    startY: 40,
     head: [["Professeur", "Statut", "Tot. H (Eq)", "Vol. Stat", "H. Compl", "Taux", "Montant"]],
     body: payements.value.map(p => [
       `${p.nomprof} ${p.prenprof}`,
@@ -183,10 +198,40 @@ const exportPDF = () => {
       p.heures_complementaires,
       formatMoney(p.taux_horaire),
       formatMoney(p.montant_total)
-    ])
+    ]),
+    theme: 'grid',
+    headStyles: { 
+      fillColor: [25, 135, 84], 
+      textColor: 255,
+      halign: 'center'
+    },
+    columnStyles: {
+      0: { cellWidth: 'auto' }, // Professeur
+      1: { cellWidth: 20, halign: 'center' }, // Statut
+      2: { cellWidth: 20, halign: 'center' }, // Tot. H (Eq)
+      3: { cellWidth: 20, halign: 'center' }, // Vol. Stat
+      4: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }, // H. Compl
+      5: { cellWidth: 35, halign: 'right' }, // Taux
+      6: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }  // Montant
+    },
+    styles: { fontSize: 9 },
+    didDrawPage: (data) => {
+      // Pied de page
+      const str = "Page " + doc.internal.getNumberOfPages();
+      doc.setFontSize(10);
+      const pageHeight = doc.internal.pageSize.height;
+      doc.text(str, pageWidth / 2, pageHeight - 10, { align: "center" });
+    }
   });
 
-  doc.save("etat_paiement.pdf");
+  // Section Signature
+  const finalY = doc.lastAutoTable.finalY + 20;
+  doc.setFontSize(11);
+  doc.setTextColor(40);
+  doc.text("Signature du Responsable RH", pageWidth - 60, finalY);
+  doc.line(pageWidth - 70, finalY + 15, pageWidth - 14, finalY + 15);
+
+  doc.save(`etat_paiement_${selectedMonthLabel}_${selectedYearLabel}.pdf`);
 };
 </script>
 
