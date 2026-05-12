@@ -137,7 +137,7 @@ export const dashbord = (req, res) => {
       SELECT 
         p.matprof,
         SUM(CASE WHEN hr.statut = 'valide' THEN hr.nbheure * COALESCE(param.coefficient, 1.0) ELSE 0 END) AS heures_validees,
-        SUM(CASE WHEN hr.statut = 'en_attente' THEN hr.nbheure * COALESCE(param.coefficient, 1.0) ELSE 0 END) AS heures_en_attente,
+        SUM(CASE WHEN hr.statut IN ('en_attente', 'refuse') THEN hr.nbheure * COALESCE(param.coefficient, 1.0) ELSE 0 END) AS heures_en_attente,
         SUM(CASE WHEN hr.statut = 'valide' THEN hr.nbheure * COALESCE(param.coefficient, 1.0) * COALESCE(th.montantth, 0) ELSE 0 END) AS montant_total
       FROM professeur p
       LEFT JOIN thoraire th ON p.idth = th.idth
@@ -209,7 +209,7 @@ export const validerHeure = (req, res) => {
   db.query(
     `
     UPDATE heure_realise
-    SET statut = 'valide'
+    SET statut = 'valide', motif_refus = NULL
     WHERE idheure = ?
     `,
     [id],

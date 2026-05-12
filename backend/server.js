@@ -23,9 +23,11 @@ import updatepassroute from "./routes/changepassroute.js";
 import deconnexionroute from "./routes/deconnexionroute.js";
 import parametrageroute from "./routes/parametrageroute.js";
 import backuproute from "./routes/backuproute.js";
+import { ensureHeureRefusSchema } from "./migrations/heureRefusSchema.js";
 //declaration de variable
 
 const app=express()
+ensureHeureRefusSchema();
 
 //midleware pre route
 app.use(cors({

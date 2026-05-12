@@ -269,8 +269,15 @@ const ajouterHeure = async () => {
    VALIDATION
 ========================= */
 const validerHeure = async (id) => {
-  await api.put(`/heures/${id}/valider`);
-  loadData();
+  try {
+    await api.put(`/heures/${id}/valider`);
+    await loadData();
+    message.value = "Heure validée avec succès";
+    isSuccess.value = true;
+  } catch (err) {
+    message.value = err.response?.data?.message || "Erreur lors de la validation";
+    isSuccess.value = false;
+  }
 };
 
 /* =========================
@@ -293,8 +300,15 @@ const reinitialiserHeure = async (id) => {
 ========================= */
 const supprimerHeure = async (id) => {
   if (!confirm("Supprimer cette heure ?")) return;
-  await api.delete(`/heures/${id}`);
-  loadData();
+  try {
+    await api.delete(`/heures/${id}`);
+    await loadData();
+    message.value = "Heure supprimée avec succès";
+    isSuccess.value = true;
+  } catch (err) {
+    message.value = err.response?.data?.message || "Erreur lors de la suppression";
+    isSuccess.value = false;
+  }
 };
 
 /* =========================
