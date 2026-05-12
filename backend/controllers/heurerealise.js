@@ -174,7 +174,8 @@ export const listHeures = (req, res) => {
       hr.nbheure,
       hr.datecours,
       hr.salle,
-      hr.statut
+      hr.statut,
+      hr.motif_refus
     FROM heure_realise hr
     JOIN affectation af ON hr.idaff = af.idaff
     JOIN professeur p ON af.matproff = p.matprof
@@ -305,6 +306,42 @@ export const deleteHeure = (req, res) => {
       res.json({
         success: true,
         message: "✅ Heure supprimée"
+      });
+    }
+  );
+};
+
+/* =========================
+   REINITIALISER UNE HEURE (RH)
+========================= */
+export const reinitialiserHeure = (req, res) => {
+  const id = Number(req.params.id);
+
+  db.query(
+    `
+    UPDATE heure_realise
+    SET statut = 'en_attente', motif_refus = NULL
+    WHERE idheure = ?
+    `,
+    [id],
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Erreur serveur" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Heure introuvable" });
+      }
+
+      db.query(
+        "INSERT INTO journallog (action, iduser) VALUES (?, ?)",
+        [`réinitialisation de l'heure (ID: ${id})`, req.session.user.iduser]
+      );
+
+      res.json({
+        success: true,
+        message: "✅ Heure remise en attente"
       });
     }
   );

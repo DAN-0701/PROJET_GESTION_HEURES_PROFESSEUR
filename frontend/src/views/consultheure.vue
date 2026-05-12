@@ -22,12 +22,13 @@
           <th>Durée</th>
           <th>Salle</th>
           <th>Statut</th>
+          <th>Actions</th>
         </tr>
       </thead>
 
       <tbody>
         <tr v-if="heures.length === 0">
-          <td colspan="5" class="text-center text-muted">
+          <td colspan="6" class="text-center text-muted">
             Aucune heure enregistrée
           </td>
         </tr>
@@ -38,17 +39,56 @@
           <td>{{ h.nbheure }} h</td>
           <td>{{ h.salle }}</td>
           <td>
-            <span
-              class="badge"
-              :class="h.statut === 'valide'
-                ? 'bg-success'
-                : 'bg-warning text-dark'">
-              {{ h.statut }}
-            </span>
+            <div class="d-flex flex-column">
+              <span
+                class="badge"
+                :class="getStatusBadgeClass(h.statut)">
+                {{ h.statut }}
+              </span>
+              <small v-if="h.statut === 'refuse' && h.motif_refus" class="text-danger mt-1">
+                Motif: {{ h.motif_refus }}
+              </small>
+            </div>
+          </td>
+          <td>
+            <button 
+              v-if="h.statut === 'valide'"
+              class="btn btn-sm btn-outline-danger"
+              @click="prepareRefusal(h)"
+            >
+              Refuser
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Modal de Refus -->
+    <div v-if="showModal" class="modal-overlay">
+      <div class="modal-content">
+        <h4>Refuser ces heures</h4>
+        <p>Veuillez préciser le motif du refus pour : <strong>{{ selectedHeure.datecours }} ({{ selectedHeure.nbheure }}h)</strong></p>
+        
+        <textarea 
+          v-model="motifRefus" 
+          class="form-control mb-3" 
+          rows="3" 
+          placeholder="Ex: La durée est incorrecte, je n'ai pas fait ce cours..."
+        ></textarea>
+
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" @click="showModal = false">Annuler</button>
+          <button class="btn btn-danger" :disabled="!motifRefus" @click="confirmRefusal">
+            Confirmer le refus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Success/Error -->
+    <div v-if="message" :class="['alert mt-3', isSuccess ? 'alert-success' : 'alert-danger']">
+      {{ message }}
+    </div>
   </div>
 </template>
 <script setup>
@@ -59,11 +99,51 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 const heures = ref([]);
+const showModal = ref(false);
+const selectedHeure = ref(null);
+const motifRefus = ref("");
+const message = ref("");
+const isSuccess = ref(true);
+
+const loadHeures = async () => {
+  heures.value = (await api.get("/prof/recap")).data;
+};
 
 /* Charger le récapitulatif */
-onMounted(async () => {
-  heures.value = (await api.get("/prof/recap")).data;
-});
+onMounted(loadHeures);
+
+const getStatusBadgeClass = (statut) => {
+  switch (statut) {
+    case "valide": return "bg-success";
+    case "refuse": return "bg-danger";
+    case "en_attente": return "bg-warning text-dark";
+    default: return "bg-secondary";
+  }
+};
+
+const prepareRefusal = (h) => {
+  selectedHeure.value = h;
+  motifRefus.value = "";
+  showModal.value = true;
+};
+
+const confirmRefusal = async () => {
+  try {
+    const res = await api.put(`/prof/heures/${selectedHeure.value.idheure}/refuser`, {
+      motif: motifRefus.value
+    });
+    
+    if (res.data.success) {
+      isSuccess.value = true;
+      message.value = res.data.message;
+      showModal.value = false;
+      await loadHeures(); // Recharger la liste
+    }
+  } catch (error) {
+    isSuccess.value = false;
+    message.value = error.response?.data?.message || "Erreur lors du refus";
+  }
+};
 
 /* Export PDF */
 const exportPDF = () => {
@@ -125,3 +205,32 @@ const exportExcel = () => {
   XLSX.writeFile(wb, "mon_recapitulatif.xlsx");
 };
 </script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white !important;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-content h4 {
+  margin-bottom: 1rem;
+  color: #dc3545;
+}
+</style>

@@ -80,5 +80,5 @@ app.use('/api',deconnexionroute)
 app.use('/api',parametrageroute)
 app.use('/api',backuproute)
 app.listen(3000, () => {
-  console.log('✅ Serveur lancé sur http://localhost:3000');
+  console.log('✅ Serveur lancé sur http://127.0.0.1:3000');
 });

@@ -98,22 +98,35 @@
           <td>{{ h.nbheure }}</td>
           <td>{{ h.salle }}</td>
           <td>
-            <span
-              class="badge"
-              :class="h.statut === 'valide' ? 'bg-success' : 'bg-warning text-dark'"
-            >
-              {{ h.statut }}
-            </span>
+            <div class="d-flex flex-column">
+              <span
+                class="badge"
+                :class="getStatusBadgeClass(h.statut)"
+              >
+                {{ h.statut === 'refuse' ? 'Refus du professeur' : h.statut }}
+              </span>
+              <small v-if="h.statut === 'refuse' && h.motif_refus" class="text-danger mt-1 fw-bold">
+                Motif: {{ h.motif_refus }}
+              </small>
+            </div>
           </td>
 
           <td>
             <div class="d-grid gap-2">
               <button
                 class="btn btn-sm btn-success"
-                v-if="h.statut === 'en_attente'"
+                v-if="h.statut === 'en_attente' || h.statut === 'refuse'"
                 @click="validerHeure(h.idheure)"
               >
-                Valider
+                {{ h.statut === 'refuse' ? 'Re-valider' : 'Valider' }}
+              </button>
+
+              <button
+                class="btn btn-sm btn-info text-white"
+                v-if="h.statut === 'refuse'"
+                @click="reinitialiserHeure(h.idheure)"
+              >
+                Mettre en attente
               </button>
 
               <button
@@ -216,6 +229,15 @@ const loadData = async () => {
   heures.value = (await api.get("/heures")).data;
 };
 
+const getStatusBadgeClass = (statut) => {
+  switch (statut) {
+    case "valide": return "bg-success";
+    case "refuse": return "bg-danger";
+    case "en_attente": return "bg-warning text-dark";
+    default: return "bg-secondary";
+  }
+};
+
 onMounted(loadData);
 
 /* =========================
@@ -249,6 +271,21 @@ const ajouterHeure = async () => {
 const validerHeure = async (id) => {
   await api.put(`/heures/${id}/valider`);
   loadData();
+};
+
+/* =========================
+   REINITIALISATION
+========================= */
+const reinitialiserHeure = async (id) => {
+  try {
+    await api.put(`/heures/${id}/reinitialiser`);
+    loadData();
+    message.value = "✅ Heure remise en attente";
+    isSuccess.value = true;
+  } catch {
+    message.value = "❌ Erreur lors de la réinitialisation";
+    isSuccess.value = false;
+  }
 };
 
 /* =========================

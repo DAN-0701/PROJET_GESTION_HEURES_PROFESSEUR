@@ -5,8 +5,9 @@ import {
   mesStatistiques,
   monRecap,
   mesStatsParMatiereNiveau,
-  mesStatsParAnnee,   // ✅ AJOUT
-  mesHeuresDetails
+  mesStatsParAnnee,
+  mesHeuresDetails,
+  refuserHeure
 } from "../controllers/professeur.js";
 
 const router = express.Router();
@@ -29,5 +30,6 @@ router.get(
 
 router.get("/prof/recap", isAuthenticated, isProf, monRecap);
 router.get("/prof/statistiques/rapport-details", isAuthenticated, isProf, mesHeuresDetails);
+router.put("/prof/heures/:id/refuser", isAuthenticated, isProf, refuserHeure);
 
 export default router;

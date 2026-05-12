@@ -30,7 +30,7 @@ export const mesHeures = (req, res) => {
     }
   );
 };
-``
+
 /* =========================
    MES STATISTIQUES (PROF)
 ========================= */
@@ -64,7 +64,7 @@ export const mesStatistiques = (req, res) => {
       }
 
       const stats = rows[0] || { total: 0, cm: 0, td: 0, tp: 0, statut: 'Vacataire', volume_statutaire: 0, montantth: 0 };
-      
+
       let montant_total = stats.total * stats.montantth;
 
       res.json({
@@ -120,11 +120,13 @@ export const monRecap = (req, res) => {
   db.query(
     `
     SELECT
+      hr.idheure,
       hr.datecours,
       hr.libheure,
       hr.nbheure,
       hr.salle,
-      hr.statut
+      hr.statut,
+      hr.motif_refus
     FROM heure_realise hr
     JOIN affectation af ON hr.idaff = af.idaff
     WHERE af.matproff = ?
@@ -207,6 +209,38 @@ export const mesHeuresDetails = (req, res) => {
         return res.status(500).json({ message: "Erreur serveur" });
       }
       res.json(rows);
+    }
+  );
+};
+
+/* =========================
+   REFUSER UNE HEURE (PROF)
+========================= */
+export const refuserHeure = (req, res) => {
+  const id = Number(req.params.id);
+  const { motif } = req.body;
+  const matprof = req.session.user.matprof;
+
+  if (!motif) {
+    return res.status(400).json({ message: "Le motif est obligatoire" });
+  }
+
+  db.query(
+    "SELECT hr.idheure FROM heure_realise hr JOIN affectation af ON hr.idaff = af.idaff WHERE hr.idheure = ? AND af.matproff = ? AND hr.statut = 'valide'",
+    [id, matprof],
+    (err, rows) => {
+      if (err) return res.status(500).json({ message: "Erreur serveur" });
+      if (rows.length === 0) return res.status(404).json({ message: "Heure introuvable ou déjà refusée" });
+
+      db.query(
+        "UPDATE heure_realise SET statut = 'refuse', motif_refus = ? WHERE idheure = ?",
+        [motif, id],
+        (err) => {
+          if (err) return res.status(500).json({ message: "Erreur serveur" });
+          db.query("INSERT INTO journallog (action, iduser) VALUES (?, ?)", [`refus d'heure par le prof (ID: ${id})`, req.session.user.iduser]);
+          res.json({ success: true, message: "✅ Heure refusée avec succès" });
+        }
+      );
     }
   );
 };

@@ -6,7 +6,8 @@ import {
   validerHeure,
   updateHeure,
   deleteHeure,
-  dashbord
+  dashbord,
+  reinitialiserHeure
 } from "../controllers/heurerealise.js";
 import { listHeuresProf } from "../controllers/heurerealise.js";
 
@@ -25,5 +26,6 @@ router.post("/heures", isAuthenticated, isRh, saisirHeure);
 router.get("/heures", isAuthenticated, isRh, listHeures);
 router.put("/heures/:id/valider", isAuthenticated, isRh, validerHeure);
 router.put("/heures/:id", isAuthenticated, isRh, updateHeure);
+router.put("/heures/:id/reinitialiser", isAuthenticated, isRh, reinitialiserHeure);
 router.delete("/heures/:id", isAuthenticated, isRh, deleteHeure);
 export default router;
