@@ -187,7 +187,7 @@
             placeholder="Rechercher un professeur..."
             v-model="searchQuery"
           />
-
+          
           <ul v-if="suggestions.length"
               class="list-group position-absolute mt-1 shadow-sm"
               style="z-index:1000; left: 1rem; right: 1rem;">
