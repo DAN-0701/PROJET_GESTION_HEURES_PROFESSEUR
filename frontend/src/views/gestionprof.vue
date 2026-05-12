@@ -7,7 +7,7 @@
     <!-- CARTES -->
     <div class="row">
       <!-- Création -->
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="card h-100 text-center">
           <div class="card-body">
             <h3>Création</h3>
@@ -22,7 +22,7 @@
       </div>
 
       <!-- Modification -->
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="card h-100 text-center">
           <div class="card-body">
             <h3>Modification</h3>
@@ -37,7 +37,7 @@
       </div>
 
       <!-- Suppression -->
-      <div class="col-md-4">
+      <div class="col-md-3">
         <div class="card h-100 text-center">
           <div class="card-body">
             <h3>Suppression</h3>
@@ -47,6 +47,28 @@
               @click="activeForm = activeForm === 'del' ? null : 'del'">
               Supprimer
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Importation -->
+      <div class="col-md-3">
+        <div class="card h-100 text-center border-info">
+          <div class="card-body">
+            <h3>Importation</h3>
+            <p>Charger depuis un fichier Excel.</p>
+            <button
+              class="btn btn-info text-white w-100"
+              @click="triggerFileInput">
+              <i class="bi bi-file-earmark-excel me-1"></i> Importer
+            </button>
+            <input 
+              type="file" 
+              ref="fileInput" 
+              class="d-none" 
+              accept=".xlsx, .xls, .csv" 
+              @change="handleExcelImport"
+            />
           </div>
         </div>
       </div>
@@ -390,9 +412,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import api from "../services/api.js";
-import { onMounted } from "vue";
+import * as XLSX from "xlsx";
 
 const activeForm = ref(null);
 const message = ref("");
@@ -412,6 +434,57 @@ const selectedProfId = ref(null);
 
 const professeurs = ref([]);
 const loading = ref(false);
+const fileInput = ref(null);
+
+const triggerFileInput = () => {
+  fileInput.value.click();
+};
+
+const handleExcelImport = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) {
+        alert("Le fichier est vide.");
+        return;
+      }
+
+      // Normalisation des clés (au cas où les en-têtes Excel varient)
+      const normalizedData = jsonData.map(row => ({
+        nom: row.nom || row.Nom || "",
+        prenom: row.prenom || row.prenom || row.Prénom || row.Prenom || "",
+        email: row.email || row.Email || "",
+        grade: (row.grade || row.Grade || "").toLowerCase(),
+        statut: row.statut || row.Statut || "Vacataire",
+        volume_statutaire: row.volume_statutaire || row.volume || 0
+      }));
+
+      loading.value = true;
+      const res = await api.post("/professeurs/import", { professeurs: normalizedData });
+      
+      message.value = res.data.message;
+      isSuccess.value = true;
+      loadProfesseurs(); // Recharger la liste
+    } catch (err) {
+      console.error("Erreur import Excel:", err);
+      message.value = "Erreur lors du traitement du fichier Excel.";
+      isSuccess.value = false;
+    } finally {
+      loading.value = false;
+      event.target.value = ""; // Reset input
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
 
 const loadProfesseurs = async () => {
   loading.value = true;

@@ -6,10 +6,12 @@ import {
   updateprof,
   getAllProfesseurs,
   deleteprof,
+  importProfesseurs,
 } from "../controllers/crudprof.js";
 
 const router = express.Router();
 
+router.post("/professeurs/import", isAuthenticated, isAdminOrRh, importProfesseurs);
 router.post("/professeurs",isAuthenticated,isAdminOrRh, createprof);
 router.get("/professeurs/search", isAuthenticated, isAdmin,searchprof);
 router.put("/professeurs/:id",isAuthenticated, isAdmin, updateprof);

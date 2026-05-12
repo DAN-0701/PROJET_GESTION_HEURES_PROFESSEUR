@@ -217,3 +217,82 @@ export const deleteprof = (req, res) => {
     }
   );
 };
+
+// IMPORT PROFESSEURS
+export const importProfesseurs = async (req, res) => {
+  const { professeurs } = req.body; // Un tableau d'objets
+
+  if (!professeurs || !Array.isArray(professeurs)) {
+    return res.status(400).json({ message: "Données d'importation invalides" });
+  }
+
+  const results = {
+    success: 0,
+    errors: [],
+    skipped: 0
+  };
+
+  const defaultPass = bcrypt.hashSync("1234567", 10);
+
+  // Utilisation d'une boucle for...of pour gérer les promesses séquentiellement (plus sûr avec MySQL2 callbacks)
+  for (const prof of professeurs) {
+    const { nom, prenom, email, grade, statut, volume_statutaire } = prof;
+
+    if (!nom || !prenom || !email || !grade || !statut) {
+      results.errors.push(`Champs manquants pour ${email || 'inconnu'}`);
+      continue;
+    }
+
+    try {
+      // 1. Vérifier si l'utilisateur existe déjà
+      const [existingUser] = await db.promise().query("SELECT iduser FROM utilisateur WHERE emailuser = ?", [email]);
+      
+      if (existingUser.length > 0) {
+        results.skipped++;
+        continue;
+      }
+
+      // 2. Créer l'utilisateur
+      const [userResult] = await db.promise().query(
+        "INSERT INTO utilisateur (nomuser, prenuser, emailuser, passuser, roleuser, first_login) VALUES (?,?,?,?,?,?)",
+        [nom, prenom, email, defaultPass, "professeur", 1]
+      );
+      const iduser = userResult.insertId;
+
+      // 3. Récupérer le taux horaire
+      const [tauxRows] = await db.promise().query("SELECT idth FROM thoraire WHERE libth = ? LIMIT 1", [grade]);
+      
+      if (tauxRows.length === 0) {
+        // Si grade non trouvé, on supprime l'utilisateur créé pour rester propre
+        await db.promise().query("DELETE FROM utilisateur WHERE iduser = ?", [iduser]);
+        results.errors.push(`Grade invalide '${grade}' pour ${email}`);
+        continue;
+      }
+      const idth = tauxRows[0].idth;
+
+      // 4. Créer le professeur
+      await db.promise().query(
+        "INSERT INTO professeur (nomprof, prenprof, grade, statut, volume_statutaire, iddep, iduser, idth) VALUES (?,?,?,?,?,?,?,?)",
+        [nom, prenom, grade, statut, volume_statutaire || 0, null, iduser, idth]
+      );
+
+      results.success++;
+    } catch (err) {
+      console.error(`Erreur import ${email}:`, err);
+      results.errors.push(`Erreur technique pour ${email}`);
+    }
+  }
+
+  // Journalisation
+  if (results.success > 0) {
+    db.query("INSERT INTO journallog (action, iduser) VALUES (?, ?)", 
+      [`Importation de ${results.success} professeurs`, req.session.user.iduser]
+    );
+  }
+
+  res.json({
+    success: true,
+    message: `Importation terminée : ${results.success} créés, ${results.skipped} ignorés (doublons), ${results.errors.length} erreurs.`,
+    details: results
+  });
+};
